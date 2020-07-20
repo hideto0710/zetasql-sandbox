@@ -4,6 +4,7 @@ import static org.junit.Assert.assertThat;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 
 import com.google.zetasql.Analyzer;
+import com.google.zetasql.Function;
 import com.google.zetasql.resolvedast.ResolvedColumn;
 import com.google.zetasql.resolvedast.ResolvedNodes;
 import org.junit.Test;
@@ -78,5 +79,24 @@ public class MainTest {
                 }
         );
         assertThat(actual, containsInAnyOrder("sample.a", "sample.b", "with_m.c"));
+    }
+    @Test
+    public void aggregateFunctionName() {
+        String query = readSQL("/aggregate.sql");
+        ResolvedNodes.ResolvedStatement statement =
+                Analyzer.analyzeStatement(query, Main.enableAllFeatures(), Main.buildCatalog());
+
+        List<String> actual = new java.util.ArrayList<>(Collections.emptyList());
+        statement.accept(
+                new ResolvedNodes.Visitor() {
+                    @Override
+                    public void visit(ResolvedNodes.ResolvedAggregateFunctionCall node) {
+                        Function fn = node.getFunction();
+                        actual.add(fn.getName());
+                        super.visit(node);
+                    }
+                }
+        );
+        assertThat(actual, containsInAnyOrder("max"));
     }
 }
