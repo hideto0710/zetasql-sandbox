@@ -6,6 +6,7 @@ import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInA
 import com.google.zetasql.Analyzer;
 import com.google.zetasql.Function;
 import com.google.zetasql.resolvedast.ResolvedColumn;
+import com.google.zetasql.resolvedast.ResolvedNode;
 import com.google.zetasql.resolvedast.ResolvedNodes;
 import org.junit.Test;
 
@@ -20,7 +21,7 @@ public class MainTest {
     private String readSQL(String path) {
         InputStream is = Main.class.getResourceAsStream(path);
         BufferedReader br = new BufferedReader(new InputStreamReader(is));
-        return br.lines().collect(Collectors.joining(" "));
+        return br.lines().collect(Collectors.joining("\n"));
     }
 
     @Test
@@ -35,7 +36,26 @@ public class MainTest {
                     @Override
                     public void visit(ResolvedNodes.ResolvedOutputColumn outputColumn) {
                         ResolvedColumn resolvedColumn = outputColumn.getColumn();
-                        actual.add(resolvedColumn.getTableName() + "." + outputColumn.getName());
+                        actual.add(resolvedColumn.getTableName() + "." + resolvedColumn.getName());
+                        super.visit(outputColumn);
+                    }
+                }
+        );
+        assertThat(actual, containsInAnyOrder("sample.a", "sample.b", "master.c"));
+    }
+    @Test
+    public void aliasOutputList() {
+        String query = readSQL("/alias.sql");
+        ResolvedNodes.ResolvedStatement statement =
+                Analyzer.analyzeStatement(query, Main.enableAllFeatures(), Main.buildCatalog());
+
+        List<String> actual = new java.util.ArrayList<>(Collections.emptyList());
+        statement.accept(
+                new ResolvedNodes.Visitor() {
+                    @Override
+                    public void visit(ResolvedNodes.ResolvedOutputColumn outputColumn) {
+                        ResolvedColumn resolvedColumn = outputColumn.getColumn();
+                        actual.add(resolvedColumn.getTableName() + "." + resolvedColumn.getName());
                         super.visit(outputColumn);
                     }
                 }
@@ -54,12 +74,12 @@ public class MainTest {
                     @Override
                     public void visit(ResolvedNodes.ResolvedOutputColumn outputColumn) {
                         ResolvedColumn resolvedColumn = outputColumn.getColumn();
-                        actual.add(resolvedColumn.getTableName() + "." + outputColumn.getName());
+                        actual.add(resolvedColumn.getTableName() + "." + resolvedColumn.getName());
                         super.visit(outputColumn);
                     }
                 }
         );
-        assertThat(actual, containsInAnyOrder("$groupby.a", "$aggregate.$col2"));
+        assertThat(actual, containsInAnyOrder("$groupby.a", "$aggregate.$agg1"));
     }
     @Test
     public void withOutputList() {
@@ -73,11 +93,26 @@ public class MainTest {
                     @Override
                     public void visit(ResolvedNodes.ResolvedOutputColumn outputColumn) {
                         ResolvedColumn resolvedColumn = outputColumn.getColumn();
-                        actual.add(resolvedColumn.getTableName() + "." + outputColumn.getName());
+                        actual.add(resolvedColumn.getTableName() + "." + resolvedColumn.getName());
                         super.visit(outputColumn);
+                    }
+                    @Override
+                    public void visit(ResolvedNodes.ResolvedWithEntry node) {
+                        node.getWithSubquery().accept(
+                                new ResolvedNodes.Visitor() {
+                                    @Override
+                                    public void visit(ResolvedNodes.ResolvedTableScan node) {
+                                        System.out.println(node.getTable().getFullName());
+                                        super.visit(node);
+                                    }
+                                }
+                        );
+                        System.out.println(node.getWithQueryName());
+                        super.visit(node);
                     }
                 }
         );
+        // FIXME: with で定義してエイリアスではなく、実際のテーブル名であるべき。
         assertThat(actual, containsInAnyOrder("sample.a", "sample.b", "with_m.c"));
     }
     @Test
