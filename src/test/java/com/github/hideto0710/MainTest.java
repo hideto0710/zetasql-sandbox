@@ -6,7 +6,6 @@ import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInA
 import com.google.zetasql.Analyzer;
 import com.google.zetasql.Function;
 import com.google.zetasql.resolvedast.ResolvedColumn;
-import com.google.zetasql.resolvedast.ResolvedNode;
 import com.google.zetasql.resolvedast.ResolvedNodes;
 import org.junit.Test;
 
